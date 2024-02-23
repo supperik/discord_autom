@@ -1,5 +1,5 @@
 import asyncio
-import datetime
+from datetime import datetime, timedelta
 import random
 
 from curl_cffi import requests
@@ -18,16 +18,17 @@ class Client:
         self.proxy = proxy
         self.flag = False
 
-        self.time_format = '%H:%M:%S'
+        self.time_format = '%d %m %y %H:%M:%S'
+        self.day = datetime.strftime(datetime.now(), '%d %m %y')
 
-        self.button_press_time = datetime.datetime.strptime(utils.generate_rofls.generate_random_time(), self.time_format)
+        self.button_press_time = datetime.strptime(f"{self.day} {utils.generate_rofls.generate_random_time(account_index)}", self.time_format)
 
         self.user_agent: str = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
                                 "Chrome/110.0.0.0 Safari/537.36")
         self.response: requests.Response | None = None
 
-        # self.client = self.create_client()
-        # self.init_cf()
+        self.client = self.create_client()
+        self.init_cf()
 
     def init_cf(self) -> bool:
         try:
@@ -90,17 +91,15 @@ class Client:
 
     async def press_button_by_time(self):
         while True:
-            current_time = datetime.datetime.strptime(datetime.datetime.now().strftime(self.time_format), self.time_format)
-            if (current_time == self.button_press_time) and (not self.flag):
-                await self.perform_task()
-            await asyncio.sleep(random.randint(400, 1356)+self.account_index)
+            current_time = datetime.strptime(datetime.now().strftime(self.time_format), self.time_format)
+            if (current_time >= self.button_press_time) and (not self.flag):
+                await self.press_button()
+            if (datetime.now().day == self.button_press_time.day + 1) and self.flag:
+                self.button_press_time = self.button_press_time + timedelta(days=1)
+                self.flag = False
+            await asyncio.sleep(random.randint(5, 10)+self.account_index)
 
-    async def perform_task(self):
-        self.flag = True
-        self.button_press_time = datetime.datetime.strptime(utils.generate_rofls.generate_random_time(), self.time_format)
-        logger.success(f"BEBRA{self.account_index}")
-
-    def press_button(self) -> bool:
+    async def press_button(self) -> bool:
         message_link = 'https://discord.com/channels/848599369879388170/1093212373793378335/1170416762588774522'.strip()
         self.guild_id = message_link.split("/")[-3]
         self.channel_id = message_link.split("/")[-2]
@@ -142,7 +141,8 @@ class Client:
 
             if resp.status_code == 204:
                 logger.success(f"{self.account_index} | Successfully pressed the button.")
-                self.button_press_time = utils.generate_rofls.generate_random_time()
+                self.flag = True
+                self.button_press_time = utils.generate_rofls.generate_random_time(self.account_index)
                 return True
             else:
                 raise Exception("Unknown error")
