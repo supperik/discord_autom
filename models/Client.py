@@ -9,9 +9,9 @@ from loguru import logger
 
 class Client:
     def __init__(self, account_index: int, proxy: str, discord_token: str):
-        self.channel_id: str | None = None
-        self.message_id: str | None = None
-        self.guild_id: str | None = None
+        self.channel_id: str | None
+        self.message_id: str | None
+        self.guild_id: str | None
 
         self.account_index = account_index
         self.discord_token = discord_token
@@ -21,7 +21,11 @@ class Client:
         self.time_format = '%d %m %y %H:%M:%S'
         self.day = datetime.strftime(datetime.now(), '%d %m %y')
 
-        self.button_press_time = datetime.strptime(f"{self.day} 15:40:20", self.time_format) #datetime.strptime(f"{self.day} {utils.generate_rofls.generate_random_time(account_index)}", self.time_format)
+        self.button_press_time = datetime.strptime(
+            f"{self.day} {utils.generate_rofls.generate_random_time(account_index)}", self.time_format)
+
+        if self.button_press_time.hour == 23 and self.button_press_time.minute == 59 and self.button_press_time.second >= 50:
+            self.button_press_time = self.button_press_time - timedelta(seconds=50)
 
         self.user_agent: str = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
                                 "Chrome/110.0.0.0 Safari/537.36")
@@ -91,13 +95,13 @@ class Client:
 
     async def press_button_by_time(self):
         while True:
+            await asyncio.sleep(random.randint(10, 30) + self.account_index)
             current_time = datetime.strptime(datetime.now().strftime(self.time_format), self.time_format)
             if (current_time >= self.button_press_time) and (not self.flag):
                 await self.press_button()
             if (datetime.now().day == self.button_press_time.day + 1) and self.flag:
                 self.button_press_time = self.button_press_time + timedelta(days=1)
                 self.flag = False
-            await asyncio.sleep(random.randint(5, 10)+self.account_index)
 
     async def press_button(self) -> bool:
         message_link = 'https://discord.com/channels/848599369879388170/1093212373793378335/1170416762588774522'.strip()
@@ -106,9 +110,10 @@ class Client:
         self.message_id = message_link.split("/")[-1]
 
         self.flag = True
-        self.button_press_time = datetime.strptime(f"{self.day} {utils.generate_rofls.generate_random_time(self.account_index)}", self.time_format)
+        self.button_press_time = datetime.strptime(
+            f"{self.day} {utils.generate_rofls.generate_random_time(self.account_index)}", self.time_format)
 
-        button_data, application_id, ok = self.message_click_button_info()
+        application_id = self.message_click_button_info()
 
         try:
             resp = self.client.post("https://discord.com/api/v9/interactions",
@@ -136,8 +141,8 @@ class Client:
                                         'application_id': application_id,
                                         'session_id': utils.generate_rofls.generate_random_session_id(),
                                         'data': {
-                                            'component_type': button_data['type'],
-                                            'custom_id': button_data['custom_id'],
+                                            'component_type': 2,
+                                            'custom_id': 'STORE_ITEM_8707618',
                                         },
                                     }
                                     )
@@ -148,25 +153,20 @@ class Client:
             else:
                 raise Exception("Unknown error")
 
-
-
         except Exception as err:
             logger.error(f"{self.account_index} | Failed to press a button: {err}")
             return False
-
 
     def message_click_button_info(self) -> tuple[dict, str, bool]:
         try:
             resp = requests.get(
                 "https://discord.com/api/v9/channels/" + self.channel_id + "/messages?limit=1&around=" + self.message_id,
                 headers={"Authorization": self.discord_token})
-
-            if '"custom_id":"enter-giveaway"' in resp.text:
-                return resp.json()[0]['components'][0]['components'][0], resp.json()[0]['author']['id'], True
-
-            result, ok = self.choose_button_to_click(resp.json()[0]['components'])
-
-            return result, resp.json()[0]['author']['id'], ok
+            return resp.json()[0]['author']['id']
+            # if '"custom_id":"enter-giveaway"' in resp.text:
+            #    return resp.json()[0]['components'][0]['components'][0], resp.json()[0]['author']['id'], True
+            # result, ok = self.choose_button_to_click(resp.json()[0]['components'])
+            # return result, resp.json()[0]['author']['id'], ok
 
         except Exception as err:
             logger.error(f'Failed to get message info: {err}')
@@ -185,19 +185,18 @@ class Client:
                 elif isinstance(element, list):
                     for item in element:
                         parsed_components.extend(collect_components(item))
-
                 return parsed_components
 
             all_components = collect_components(components)
-
             buttons = []
             for index, comp in enumerate(all_components, start=1):
                 buttons.append(comp['label'])
 
-            button = ['Daily Drop -February 20']
+            button = buttons[0]
 
             for index, comp in enumerate(all_components, start=1):
                 if comp['label'] == button[0]:
+                    print(comp)
                     return comp, True
 
         except Exception as err:
