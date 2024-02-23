@@ -21,7 +21,7 @@ class Client:
         self.time_format = '%d %m %y %H:%M:%S'
         self.day = datetime.strftime(datetime.now(), '%d %m %y')
 
-        self.button_press_time = datetime.strptime(f"{self.day} {utils.generate_rofls.generate_random_time(account_index)}", self.time_format)
+        self.button_press_time = datetime.strptime(f"{self.day} 15:40:20", self.time_format) #datetime.strptime(f"{self.day} {utils.generate_rofls.generate_random_time(account_index)}", self.time_format)
 
         self.user_agent: str = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
                                 "Chrome/110.0.0.0 Safari/537.36")
@@ -105,6 +105,9 @@ class Client:
         self.channel_id = message_link.split("/")[-2]
         self.message_id = message_link.split("/")[-1]
 
+        self.flag = True
+        self.button_press_time = datetime.strptime(f"{self.day} {utils.generate_rofls.generate_random_time(self.account_index)}", self.time_format)
+
         button_data, application_id, ok = self.message_click_button_info()
 
         try:
@@ -141,15 +144,16 @@ class Client:
 
             if resp.status_code == 204:
                 logger.success(f"{self.account_index} | Successfully pressed the button.")
-                self.flag = True
-                self.button_press_time = utils.generate_rofls.generate_random_time(self.account_index)
                 return True
             else:
                 raise Exception("Unknown error")
 
+
+
         except Exception as err:
             logger.error(f"{self.account_index} | Failed to press a button: {err}")
             return False
+
 
     def message_click_button_info(self) -> tuple[dict, str, bool]:
         try:
